@@ -1,0 +1,17 @@
+flutter_native_splash:
+  # The background color of the splash screen
+  color: "#e4ecf5"
+  
+  fullscreen: true
+
+  # The image to display in the center (using your new app icon)
+  image: "assets/app_icon.png"
+  
+  # Hide the Android 12+ default branding to use our custom design cleanly
+  android_12:
+    image: "assets/app_icon_padded.png"
+    # The screen background color
+    color: "#2b4e72"
+    
+    # This prevents that weird two-tone circle background in your screenshot
+    icon_background_color: "#2b4e72"

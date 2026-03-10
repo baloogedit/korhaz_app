@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "484906751093",
+    "project_id": "korhazappdb",
+    "storage_bucket": "korhazappdb.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:484906751093:android:06e3b26472c9a1e289143c",
+        "android_client_info": {
+          "package_name": "com.edite.korhazapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDV5AZu9NEqj9VKrsloR6XYAzVHg-lXMyM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:484906751093:android:2f9d1cb347edc0da89143c",
+        "android_client_info": {
+          "package_name": "com.example.korhaz_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDV5AZu9NEqj9VKrsloR6XYAzVHg-lXMyM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
