@@ -117,7 +117,7 @@ class _ProgramTabState extends State<ProgramTab> {
             DropdownButtonFormField<String>(
               decoration: _dropdownDecoration(),
               hint: const Text("Válassz szekciót..."),
-              value: selectedSection,
+              initialValue: selectedSection,
               items: sections.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
               onChanged: (val) {
                 setState(() => selectedSection = val);
@@ -132,7 +132,7 @@ class _ProgramTabState extends State<ProgramTab> {
             DropdownButtonFormField<String>(
               decoration: _dropdownDecoration(),
               hint: const Text("Válassz orvost..."),
-              value: selectedDoctor,
+              initialValue: selectedDoctor,
               items: doctors.map((d) => DropdownMenuItem<String>(value: d['name'], child: Text(d['name']))).toList(),
               onChanged: (val) => setState(() => selectedDoctor = val),
             ),
@@ -143,7 +143,7 @@ class _ProgramTabState extends State<ProgramTab> {
               decoration: BoxDecoration(
                 color: AppColors.cardWhite,
                 borderRadius: BorderRadius.circular(20),
-                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)],
+                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha:0.05), blurRadius: 10)],
               ),
               child: TableCalendar(
                 firstDay: DateTime.now(),
@@ -162,7 +162,7 @@ class _ProgramTabState extends State<ProgramTab> {
                     shape: BoxShape.circle,
                   ),
                   todayDecoration: BoxDecoration(
-                    color: AppColors.primaryTeal.withOpacity(0.3),
+                    color: AppColors.primaryTeal.withValues(alpha: 0.3),
                     shape: BoxShape.circle,
                   ),
                 ),

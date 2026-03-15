@@ -92,7 +92,7 @@ class _HomeTabState extends State<HomeTab> {
                                 fillColor: AppColors.inputFill,
                               ),
                               hint: const Text("Válassz szekciót..."),
-                              value: selectedSection,
+                              initialValue: selectedSection,
                               items: sectionItems,
                               onChanged: (value) {
                                 setState(() => selectedSection = value);
