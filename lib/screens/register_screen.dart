@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:korhaz_app/constants/colors.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -135,7 +136,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       onPressed: _register,
                       style: ElevatedButton.styleFrom(
                         minimumSize: const Size(double.infinity, 60),
-                        backgroundColor: Colors.deepPurple,
+                        backgroundColor: AppColors.buttonTeal,
                         foregroundColor: Colors.white,
                       ),
                       child: const Text("Regisztráció", style: TextStyle(fontSize: 18)),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:korhaz_app/constants/colors.dart';
 import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -84,7 +85,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       onPressed: _login,
                       style: ElevatedButton.styleFrom(
                         minimumSize: const Size(double.infinity, 60),
-                        backgroundColor: Colors.deepPurple,
+                        backgroundColor: AppColors.buttonTeal,
                         foregroundColor: Colors.white,
                       ),
                       child: const Text(
