@@ -1,8 +1,13 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:korhaz_app/constants/colors.dart';
 import 'package:korhaz_app/screens/records_screen.dart';
+import 'package:network_info_plus/network_info_plus.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:intl/intl.dart';
 
 class ProfileTab extends StatefulWidget {
   const ProfileTab({super.key});
@@ -176,7 +181,14 @@ class _ProfileTabState extends State<ProfileTab> {
             }
 
             var appt = snapshot.data!.docs.first;
-            return _buildAppointmentCard(appt['date'], appt['time'], appt['doctor'], appt['section']);
+            return _buildAppointmentCard(
+              appt.id, // Pass the document ID
+              appt['date'], 
+              appt['time'], 
+              appt['doctor'], 
+              appt['section'],
+              appt['status'] // Pass the status
+            );
           },
         ),
         
@@ -214,30 +226,51 @@ class _ProfileTabState extends State<ProfileTab> {
   }
 
   // Helper Widgets for UI
-  Widget _buildAppointmentCard(String date, String time, String doctor, String section) {
+  Widget _buildAppointmentCard(String appId, String date, String time, String doctor, String section, String status) {
+    bool isCheckedIn = status == 'megérkezett';
+
     return Container(
       padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
         color: AppColors.cardWhite,
         borderRadius: BorderRadius.circular(15),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha:0.05), blurRadius: 10)],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10)],
       ),
-      child: Row(
+      child: Column(
         children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(color: AppColors.navIndicator, borderRadius: BorderRadius.circular(12)),
-            child: const Icon(Icons.calendar_today, color: AppColors.primaryTeal),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(color: AppColors.navIndicator, borderRadius: BorderRadius.circular(12)),
+                child: const Icon(Icons.calendar_today, color: AppColors.primaryTeal),
+              ),
+              const SizedBox(width: 15),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text("$date | $time", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    const SizedBox(height: 5),
+                    Text("$doctor ($section)", style: const TextStyle(color: AppColors.textGrey)),
+                  ],
+                ),
+              )
+            ],
           ),
-          const SizedBox(width: 15),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text("$date | $time", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                const SizedBox(height: 5),
-                Text("$doctor ($section)", style: const TextStyle(color: AppColors.textGrey)),
-              ],
+          const SizedBox(height: 15),
+          
+          // The Check-in Button
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: isCheckedIn ? null : () => _tryCheckIn(appId, date, time, doctor),
+              icon: Icon(isCheckedIn ? Icons.check_circle : Icons.location_on),
+              label: Text(isCheckedIn ? "Sikeresen bejelentkezve!" : "Megérkeztem (Check-in)"),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: isCheckedIn ? Colors.green : AppColors.primaryTeal,
+                foregroundColor: Colors.white,
+              ),
             ),
           )
         ],
@@ -287,6 +320,105 @@ class _ProfileTabState extends State<ProfileTab> {
       trailing: const Icon(Icons.chevron_right, color: Colors.grey, size: 20),
       onTap: onTap,
       contentPadding: EdgeInsets.zero,
+    );
+  }
+
+  Future<void> _tryCheckIn(
+    String appointmentId,
+    String date,
+    String time,
+    String doctorName,
+  ) async {
+    // --- 1. TIME CHECK ---
+    // Combine date and time to create a DateTime object
+    DateTime apptTime = DateFormat('yyyy-MM-dd HH:mm').parse('$date $time');
+    DateTime now = DateTime.now();
+
+    // Calculate the difference in minutes
+    int diffMinutes = now.difference(apptTime).inMinutes;
+
+    // Is it outside the +/- 5 minute window?
+    if (diffMinutes < -5 || diffMinutes > 5) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            "Csak az időpontod előtt/után 5 perccel jelentkezhetsz be!",
+          ),
+        ),
+      );
+      return;
+    }
+
+    // --- 2. WIFI CHECK ---
+    // Request location permission (required by Android/iOS to read WiFi names)
+    var status = await Permission.locationWhenInUse.request();
+    if (!status.isGranted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            "Helymeghatározás engedélye szükséges a WiFi ellenőrzéséhez!",
+          ),
+        ),
+      );
+      return;
+    }
+
+    // Read the WiFi name
+    final info = NetworkInfo();
+    String? wifiName = await info.getWifiName();
+
+    // Clean up the wifi name (Android sometimes wraps it in quotes like "MyWiFi")
+    wifiName = wifiName?.replaceAll('"', '');
+
+    // TODO: Change "HOSPITAL_WIFI" to your actual HOME WiFi name so you can test it!
+    const String requiredWifi = "TP-Link_404F";
+
+    if (wifiName != requiredWifi) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            "Nem a kórház WiFi hálózatán vagy! (Jelenlegi: $wifiName)",
+          ),
+        ),
+      );
+      return;
+    }
+
+    // --- 3. SUCCESS! UPDATE DATABASE & SHOW ROOM ---
+
+    // Generate a random room/floor for the prototype based on the doctor's name length
+    // (In a real app, you would fetch this from the Doctor's Firestore document)
+    int floor = (doctorName.length % 3) + 1;
+    int room = (doctorName.length * 12) % 100 + 100;
+
+    // Update the appointment status to checked-in
+    await FirebaseFirestore.instance
+        .collection('Appointments')
+        .doc(appointmentId)
+        .update({'status': 'megérkezett'});
+
+    if (!mounted) return;
+
+    // Show the massive success dialog with directions!
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text(
+          "Sikeres Bejelentkezés!",
+          style: TextStyle(color: AppColors.primaryTeal),
+        ),
+        content: Text(
+          "Az orvosod már vár rád.\n\n"
+          "Kérjük fáradj a(z) $floor. emeletre, a $room-as terembe.",
+          style: const TextStyle(fontSize: 16, height: 1.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Rendben", style: TextStyle(fontSize: 16)),
+          ),
+        ],
+      ),
     );
   }
 }
