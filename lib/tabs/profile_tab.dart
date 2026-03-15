@@ -370,7 +370,7 @@ class _ProfileTabState extends State<ProfileTab> {
     // Clean up the wifi name (Android sometimes wraps it in quotes like "MyWiFi")
     wifiName = wifiName?.replaceAll('"', '');
 
-    // TODO: Change "HOSPITAL_WIFI" to your actual HOME WiFi name so you can test it!
+    // TODO: Change wifi name based on where i run it
     const String requiredWifi = "TP-Link_404F";
 
     if (wifiName != requiredWifi) {
