@@ -17,7 +17,7 @@ class _HomeTabState extends State<HomeTab> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: bgTeal,
+      backgroundColor: AppColors.bgTeal,
       body: SingleChildScrollView(
         child: Column(
           children: [
@@ -41,13 +41,13 @@ class _HomeTabState extends State<HomeTab> {
                 children: [
                   Text(
                     "Üdvözlünk!",
-                    style: TextStyle(color: Colors.white70, fontSize: 16),
+                    style: TextStyle(color: AppColors.textWhiteFaded, fontSize: 16),
                   ),
                   SizedBox(height: 5),
                   Text(
                     "KorhazApp Központ", // Your Hospital Name
                     style: TextStyle(
-                        color: Colors.white,
+                        color: AppColors.textWhite,
                         fontSize: 28,
                         fontWeight: FontWeight.bold),
                   ),
@@ -89,7 +89,7 @@ class _HomeTabState extends State<HomeTab> {
                               decoration: InputDecoration(
                                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                                 filled: true,
-                                fillColor: Colors.grey.shade50,
+                                fillColor: AppColors.inputFill,
                               ),
                               hint: const Text("Válassz szekciót..."),
                               value: selectedSection,
@@ -138,13 +138,13 @@ class _HomeTabState extends State<HomeTab> {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, color: Colors.teal, size: 24),
+        Icon(icon, color: AppColors.primaryTeal, size: 24),
         const SizedBox(width: 15),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: const TextStyle(color: Colors.grey, fontSize: 12)),
+              Text(title, style: const TextStyle(color: AppColors.textGrey, fontSize: 12)),
               Text(value, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
             ],
           ),
