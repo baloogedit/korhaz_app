@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:korhaz_app/constants/colors.dart';
-// import 'records_screen.dart'; // We will create this next!
+import 'package:korhaz_app/screens/records_screen.dart';
 
 class ProfileTab extends StatefulWidget {
   const ProfileTab({super.key});
@@ -187,7 +187,7 @@ class _ProfileTabState extends State<ProfileTab> {
           "Múltbeli programálások", 
           Icons.history, 
           () {
-            // Navigator.push(context, MaterialPageRoute(builder: (context) => const RecordsScreen(mode: 'patient')));
+             Navigator.push(context, MaterialPageRoute(builder: (context) => const RecordsScreen(mode: 'patient')));
           }
         ),
       ],
@@ -206,7 +206,7 @@ class _ProfileTabState extends State<ProfileTab> {
           "Kórlapok kezelése", 
           Icons.folder_shared, 
           () {
-            // Navigator.push(context, MaterialPageRoute(builder: (context) => const RecordsScreen(mode: 'doctor')));
+             Navigator.push(context, MaterialPageRoute(builder: (context) => const RecordsScreen(mode: 'doctor')));
           }
         ),
       ],
