@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'firebase_options.dart';
+import 'package:korhaz_app/screens/main_screen.dart';
+import 'package:korhaz_app/constants/colors.dart';
 
 import 'screens/login_screen.dart';
 
@@ -27,7 +29,7 @@ class KorhazApp extends StatelessWidget {
       title: 'KorhazApp',
       // Let's use a Teal color theme since it's a hospital app!
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal),
+        colorScheme: ColorScheme.fromSeed(seedColor: AppColors.primaryTeal),
         useMaterial3: true, 
       ),
       // 3. Listen to the Auth State to decide which screen to show
@@ -42,7 +44,7 @@ class KorhazApp extends StatelessWidget {
           if (snapshot.hasData) {
             return const Scaffold(
               body: Center(
-                child: Text("Sikeres Belépés! Főoldal jön ide.", style: TextStyle(fontSize: 24)),
+                child: MainScreen(),
               ),
             ); 
           }
