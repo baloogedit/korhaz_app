@@ -209,9 +209,67 @@ class _ProfileTabState extends State<ProfileTab> {
 
   // 3. DOCTOR SPECIFIC VIEW
   Widget _buildDoctorView() {
+    final String doctorName = userData?['name'] ?? "";
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        const Text("Mai és Közeledő Páciensek", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+        const SizedBox(height: 15),
+        
+        // Listen to all appointments for THIS doctor
+        StreamBuilder<QuerySnapshot>(
+          stream: FirebaseFirestore.instance
+              .collection('Appointments')
+              .where('doctor', isEqualTo: doctorName)
+              .snapshots(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator(color: AppColors.primaryTeal));
+            }
+            
+            if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+              return _buildEmptyCard("Jelenleg nincs aktív előjegyzésed.");
+            }
+
+            // Filter out completed ("befejezett") appointments locally
+            var activeAppointments = snapshot.data!.docs.where((doc) {
+              return doc['status'] == 'aktív' || doc['status'] == 'megérkezett';
+            }).toList();
+
+            // Sort them by Date, then by Time so the schedule is in order
+            activeAppointments.sort((a, b) {
+              int dateComp = (a['date'] as String).compareTo(b['date'] as String);
+              if (dateComp != 0) return dateComp;
+              return (a['time'] as String).compareTo(b['time'] as String);
+            });
+
+            if (activeAppointments.isEmpty) {
+              return _buildEmptyCard("Jelenleg nincs aktív előjegyzésed.");
+            }
+
+            // Build a list of cards for the patients
+            return ListView.builder(
+              shrinkWrap: true, // Needed because we are inside a SingleChildScrollView
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: activeAppointments.length,
+              itemBuilder: (context, index) {
+                var appt = activeAppointments[index];
+                bool isCheckedIn = appt['status'] == 'megérkezett';
+                
+                return _buildDoctorAppointmentCard(
+                  appt.id,
+                  appt['date'],
+                  appt['time'],
+                  appt['patient_id'],
+                  isCheckedIn,
+                );
+              },
+            );
+          },
+        ),
+        
+        const SizedBox(height: 30),
         const Text("Orvosi Eszközök", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
         const SizedBox(height: 15),
         
@@ -219,12 +277,70 @@ class _ProfileTabState extends State<ProfileTab> {
           "Kórlapok kezelése", 
           Icons.folder_shared, 
           () {
-             Navigator.push(context, MaterialPageRoute(builder: (context) => const RecordsScreen(mode: 'doctor')));
+            Navigator.push(context, MaterialPageRoute(builder: (context) => const RecordsScreen(mode: 'doctor')));
           }
         ),
       ],
     );
   }
+
+  // Smart Card for the Doctor's View
+  Widget _buildDoctorAppointmentCard(String appId, String date, String time, String patientId, bool isCheckedIn) {
+    return FutureBuilder<DocumentSnapshot>(
+      // Look up the patient's name using their ID
+      future: FirebaseFirestore.instance.collection('Users').doc(patientId).get(),
+      builder: (context, snapshot) {
+        String patientName = "Páciens betöltése...";
+        if (snapshot.hasData && snapshot.data!.exists) {
+          patientName = snapshot.data!['name'] ?? "Ismeretlen Páciens";
+        }
+
+        return Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(15),
+          decoration: BoxDecoration(
+            color: AppColors.cardWhite,
+            borderRadius: BorderRadius.circular(15),
+            // Give it a thick green border if the patient is in the waiting room!
+            border: isCheckedIn ? Border.all(color: Colors.green, width: 2) : null,
+            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10)],
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: isCheckedIn ? Colors.green.shade50 : AppColors.navIndicator, 
+                  borderRadius: BorderRadius.circular(12)
+                ),
+                child: Icon(
+                  isCheckedIn ? Icons.how_to_reg : Icons.person_outline, 
+                  color: isCheckedIn ? Colors.green : AppColors.primaryTeal
+                ),
+              ),
+              const SizedBox(width: 15),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text("$date | $time", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    const SizedBox(height: 5),
+                    Text(patientName, style: const TextStyle(fontSize: 15, color: Colors.black87)),
+                    
+                    if (isCheckedIn) ...[
+                      const SizedBox(height: 5),
+                      const Text("A páciens megérkezett a váróba!", style: TextStyle(color: Colors.green, fontSize: 12, fontWeight: FontWeight.bold))
+                    ]
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      }
+    );
+  }
+
 
   // Helper Widgets for UI
   Widget _buildAppointmentCard(String appId, String date, String time, String doctor, String section, String status) {
