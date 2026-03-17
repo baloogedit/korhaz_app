@@ -52,7 +52,7 @@ class _MainScreenState extends State<MainScreen> {
             NavigationDestination(
               icon: Icon(Icons.calendar_today_outlined),
               selectedIcon: Icon(Icons.calendar_month, color: AppColors.primaryTeal),
-              label: 'Progr.',
+              label: 'Programálás',
             ),
             NavigationDestination(
               icon: Icon(Icons.person_outline),
