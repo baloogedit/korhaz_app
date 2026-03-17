@@ -7,7 +7,8 @@ import 'package:korhaz_app/constants/colors.dart';
 import 'package:korhaz_app/screens/records_screen.dart';
 import 'package:network_info_plus/network_info_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:intl/intl.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class ProfileTab extends StatefulWidget {
   const ProfileTab({super.key});
@@ -323,102 +324,75 @@ class _ProfileTabState extends State<ProfileTab> {
     );
   }
 
-  Future<void> _tryCheckIn(
-    String appointmentId,
-    String date,
-    String time,
-    String doctorName,
-  ) async {
-    // --- 1. TIME CHECK ---
-    // Combine date and time to create a DateTime object
-    DateTime apptTime = DateFormat('yyyy-MM-dd HH:mm').parse('$date $time');
-    DateTime now = DateTime.now();
-
-    // Calculate the difference in minutes
-    int diffMinutes = now.difference(apptTime).inMinutes;
-
-    // Is it outside the +/- 5 minute window?
-    if (diffMinutes < -5 || diffMinutes > 5) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            "Csak az időpontod előtt/után 5 perccel jelentkezhetsz be!",
-          ),
-        ),
-      );
-      return;
-    }
-
-    // --- 2. WIFI CHECK ---
-    // Request location permission (required by Android/iOS to read WiFi names)
+  Future<void> _tryCheckIn(String appointmentId, String date, String time, String doctorName) async {
+    // 1. Get Location Permission & WiFi Name (Client side)
     var status = await Permission.locationWhenInUse.request();
     if (!status.isGranted) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            "Helymeghatározás engedélye szükséges a WiFi ellenőrzéséhez!",
-          ),
-        ),
+        const SnackBar(content: Text("Helymeghatározás engedélye szükséges a WiFi ellenőrzéséhez!")),
       );
       return;
     }
 
-    // Read the WiFi name
     final info = NetworkInfo();
     String? wifiName = await info.getWifiName();
+    wifiName = wifiName?.replaceAll('"', ''); // Clean up name
 
-    // Clean up the wifi name (Android sometimes wraps it in quotes like "MyWiFi")
-    wifiName = wifiName?.replaceAll('"', '');
+    // 2. Call the Node.js Server
+    // TODO: change wifi name in server (index.js) to match testing environment (ln. 24)
+    // IMPORTANT: If testing on an Android Emulator, use "10.0.2.2" instead of "localhost"
+    // If testing on a real phone via USB, use your computer's local IP (e.g., 192.168.1.X)
+    final String serverUrl = "http://10.0.2.2:3000/api/checkin";
 
-    // TODO: Change wifi name based on where i run it
-    const String requiredWifi = "TP-Link_404F";
-
-    if (wifiName != requiredWifi) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            "Nem a kórház WiFi hálózatán vagy! (Jelenlegi: $wifiName)",
-          ),
-        ),
+    try {
+      final response = await http.post(
+        Uri.parse(serverUrl),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({
+          "appointmentId": appointmentId,
+          "date": date,
+          "time": time,
+          "wifiName": wifiName ?? "Ismeretlen",
+          "doctorName": doctorName,
+        }),
       );
-      return;
-    }
 
-    // --- 3. SUCCESS! UPDATE DATABASE & SHOW ROOM ---
+      final responseData = jsonDecode(response.body);
 
-    // Generate a random room/floor for the prototype based on the doctor's name length
-    // (In a real app, you would fetch this from the Doctor's Firestore document)
-    int floor = (doctorName.length % 3) + 1;
-    int room = (doctorName.length * 12) % 100 + 100;
+      if (!mounted) return;
 
-    // Update the appointment status to checked-in
-    await FirebaseFirestore.instance
-        .collection('Appointments')
-        .doc(appointmentId)
-        .update({'status': 'megérkezett'});
-
-    if (!mounted) return;
-
-    // Show the massive success dialog with directions!
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text(
-          "Sikeres Bejelentkezés!",
-          style: TextStyle(color: AppColors.primaryTeal),
-        ),
-        content: Text(
-          "Az orvosod már vár rád.\n\n"
-          "Kérjük fáradj a(z) $floor. emeletre, a $room-as terembe.",
-          style: const TextStyle(fontSize: 16, height: 1.5),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text("Rendben", style: TextStyle(fontSize: 16)),
+      // 3. Handle Server Response
+      if (response.statusCode == 200 && responseData['success'] == true) {
+        // Success! The server updated the DB and sent us the room info
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text("Sikeres Bejelentkezés!", style: TextStyle(color: AppColors.primaryTeal)),
+            content: Text(
+              "Az orvosod már vár rád.\n\n"
+              "Kérjük fáradj a(z) ${responseData['floor']}. emeletre, a ${responseData['room']}-as terembe.",
+              style: const TextStyle(fontSize: 16, height: 1.5),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text("Rendben", style: TextStyle(fontSize: 16)),
+              )
+            ],
           ),
-        ],
-      ),
-    );
+        );
+      } else {
+        // The server rejected the check-in (Wrong WiFi or Time)
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(responseData['message'] ?? "Ismeretlen hiba")),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Nem sikerült kapcsolódni a szerverhez: $e")),
+      );
+    }
   }
 }
