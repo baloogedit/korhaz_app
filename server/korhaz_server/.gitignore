@@ -1,0 +1,4 @@
+
+#server things that are not needed
+node_modules/
+serviceAccountKey.json
