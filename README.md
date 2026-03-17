@@ -1,8 +1,8 @@
 # KorhazApp - Okos Kórházi Időpontfoglaló Rendszer
 
 ## Hallgatói Információk
-**Név:** Balog Edit
-**Azonosító / Neptun kód:** 78 (nr. matricol)
+**Név:** Balog Edit  
+**Azonosító / Neptun kód:** 78 (nr. matricol)  
 **Kurzus:** Android / Mobilalkalmazás-fejlesztés
 
 ## Projekt Címe
