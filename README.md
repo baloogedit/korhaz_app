@@ -36,7 +36,7 @@ Egy átfogó, háromrétegű (3-tier) architektúrára épülő mobilalkalmazás
 1. Nyiss egy terminált, és lépj a szerver mappájába: `cd korhaz_server`
 2. Telepítsd a függőségeket: `npm install`
 3. Indítsd el a szervert: `node index.js`
-*(Megjegyzés: Győződj meg róla, hogy a `serviceAccountKey.json` fájl benne van a szerver mappájában).*
+*(A `serviceAccountKey.json` fájl biztonsági okokból nincsen feltöltve, azt kérésre küldom csak kiváltságos személyeknek).*
 
 ### 2. A mobilalkalmazás futtatása
 1. Klónozd ezt a repozitóriumot.
