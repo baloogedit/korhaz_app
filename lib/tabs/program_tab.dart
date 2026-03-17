@@ -23,9 +23,8 @@ class _ProgramTabState extends State<ProgramTab> {
   List<Map<String, dynamic>> doctors = [];
   
   // Available times for the pills
-  final List<String> availableTimes = [
-    "08:00", "08:30", "09:00", "09:30", "10:00", "11:00", "13:00", "14:30"
-  ];
+  List<String> bookedTimes = [];
+  bool isLoadingTimes = false;
 
   @override
   void initState() {
@@ -59,6 +58,85 @@ class _ProgramTabState extends State<ProgramTab> {
         return {"id": doc.id, "name": doc['name']};
       }).toList();
     });
+  }
+
+  // Fetch all existing appointments for the selected doctor & day
+  Future<void> _fetchAvailableTimes() async {
+    if (selectedDoctor == null || _selectedDay == null) {
+      setState(() {
+        bookedTimes = [];
+        selectedTime = null;
+      });
+      return;
+    }
+
+    setState(() => isLoadingTimes = true);
+
+    final dateString = DateFormat('yyyy-MM-dd').format(_selectedDay!);
+
+    var snapshot = await FirebaseFirestore.instance
+        .collection('Appointments')
+        .where('doctor', isEqualTo: selectedDoctor)
+        .where('date', isEqualTo: dateString)
+        .get();
+
+    List<String> fetchedTimes = [];
+    for (var doc in snapshot.docs) {
+      // We assume if it's in the database, it takes up a slot!
+      fetchedTimes.add(doc['time'] as String);
+    }
+
+    setState(() {
+      bookedTimes = fetchedTimes;
+      isLoadingTimes = false;
+      selectedTime = null; // Reset user's time selection if they change days
+    });
+  }
+
+  int _timeToMinutes(String time) {
+    final parts = time.split(':');
+    return int.parse(parts[0]) * 60 + int.parse(parts[1]);
+  }
+
+  // NEW: The algorithmic magic that calculates 10-minute intervals and prevents overlaps!
+  List<String> _getDynamicAvailableTimes() {
+    List<String> times = [];
+    int startMinutes = 8 * 60; // Start at 08:00
+    int endMinutes = 16 * 60;  // End at 16:00
+
+    bool isToday = isSameDay(_selectedDay, DateTime.now());
+    int currentMinutes = DateTime.now().hour * 60 + DateTime.now().minute;
+
+    // Loop through the day in 10-minute jumps
+    for (int i = startMinutes; i <= endMinutes - 30; i += 10) {
+      // Bonus: If it's today, don't show times that have already passed!
+      if (isToday && i <= currentMinutes) continue;
+
+      int candidateStart = i;
+      int candidateEnd = i + 30; // Every appointment takes 30 minutes
+      bool isOverlapping = false;
+
+      // Check this candidate time against EVERY booked appointment
+      for (String booked in bookedTimes) {
+        int bookedStart = _timeToMinutes(booked);
+        int bookedEnd = bookedStart + 30;
+
+        // The formula to detect if two time periods overlap:
+        if (candidateStart < bookedEnd && candidateEnd > bookedStart) {
+          isOverlapping = true;
+          break; // Stop checking, this slot is dead!
+        }
+      }
+
+      // If it didn't overlap with anything, format it and add it to the list!
+      if (!isOverlapping) {
+        int h = i ~/ 60;
+        int m = i % 60;
+        String timeStr = '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}';
+        times.add(timeStr);
+      }
+    }
+    return times;
   }
 
   // Booking logic
@@ -134,7 +212,10 @@ class _ProgramTabState extends State<ProgramTab> {
               hint: const Text("Válassz orvost..."),
               initialValue: selectedDoctor,
               items: doctors.map((d) => DropdownMenuItem<String>(value: d['name'], child: Text(d['name']))).toList(),
-              onChanged: (val) => setState(() => selectedDoctor = val),
+              onChanged: (val) {
+                setState(() => selectedDoctor = val);
+                _fetchAvailableTimes(); // Fetch times when doctor is chosen
+              },
             ),
             const SizedBox(height: 25),
 
@@ -155,6 +236,7 @@ class _ProgramTabState extends State<ProgramTab> {
                     _selectedDay = selectedDay;
                     _focusedDay = focusedDay;
                   });
+                  _fetchAvailableTimes(); // Fetch times when day is chosen
                 },
                 calendarStyle: CalendarStyle(
                   selectedDecoration: const BoxDecoration(
@@ -174,30 +256,48 @@ class _ProgramTabState extends State<ProgramTab> {
             ),
             const SizedBox(height: 25),
 
-            // 4. MODERN TIME SLOTS (Pills instead of Dropdown)
+            // 4. DYNAMIC TIME SLOTS (Replacing your Java ListView)
             const Text("Elérhető Időpontok", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             const SizedBox(height: 12),
-            Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              children: availableTimes.map((time) {
-                bool isSelected = selectedTime == time;
-                return ChoiceChip(
-                  label: Text(time),
-                  selected: isSelected,
-                  selectedColor: AppColors.primaryTeal,
-                  labelStyle: TextStyle(
-                    color: isSelected ? Colors.white : Colors.black87,
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                  ),
-                  backgroundColor: AppColors.cardWhite,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  onSelected: (selected) {
-                    setState(() => selectedTime = selected ? time : null);
-                  },
-                );
-              }).toList(),
-            ),
+
+            // Logic to show loading, empty states, or the actual time chips
+            if (selectedDoctor == null || _selectedDay == null)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 20),
+                child: Text("Kérlek válassz orvost és dátumot az időpontokhoz!", style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic)),
+              )
+            else if (isLoadingTimes)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 20),
+                child: Center(child: CircularProgressIndicator(color: AppColors.primaryTeal)),
+              )
+            else if (_getDynamicAvailableTimes().isEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 20),
+                child: Text("Sajnos ezen a napon nincs több szabad időpont.", style: TextStyle(color: Colors.redAccent)),
+              )
+            else
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: _getDynamicAvailableTimes().map((time) {
+                  bool isSelected = selectedTime == time;
+                  return ChoiceChip(
+                    label: Text(time),
+                    selected: isSelected,
+                    selectedColor: AppColors.primaryTeal,
+                    labelStyle: TextStyle(
+                      color: isSelected ? Colors.white : Colors.black87,
+                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                    ),
+                    backgroundColor: AppColors.cardWhite,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    onSelected: (selected) {
+                      setState(() => selectedTime = selected ? time : null);
+                    },
+                  );
+                }).toList(),
+              ),
             const SizedBox(height: 40),
 
             // 5. BOOK BUTTON
