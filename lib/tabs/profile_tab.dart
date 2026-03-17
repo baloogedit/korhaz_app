@@ -284,10 +284,10 @@ class _ProfileTabState extends State<ProfileTab> {
     );
   }
 
-  // Smart Card for the Doctor's View
+  
+  // Smart Card for the Doctor's View (with Consultation Button)
   Widget _buildDoctorAppointmentCard(String appId, String date, String time, String patientId, bool isCheckedIn) {
     return FutureBuilder<DocumentSnapshot>(
-      // Look up the patient's name using their ID
       future: FirebaseFirestore.instance.collection('Users').doc(patientId).get(),
       builder: (context, snapshot) {
         String patientName = "Páciens betöltése...";
@@ -296,44 +296,67 @@ class _ProfileTabState extends State<ProfileTab> {
         }
 
         return Container(
-          margin: const EdgeInsets.only(bottom: 12),
+          margin: const EdgeInsets.only(bottom: 15),
           padding: const EdgeInsets.all(15),
           decoration: BoxDecoration(
             color: AppColors.cardWhite,
             borderRadius: BorderRadius.circular(15),
-            // Give it a thick green border if the patient is in the waiting room!
-            border: isCheckedIn ? Border.all(color: Colors.green, width: 2) : null,
+            border: isCheckedIn ? Border.all(color: Colors.green, width: 2) : Border.all(color: Colors.grey.shade200),
             boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10)],
           ),
-          child: Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: isCheckedIn ? Colors.green.shade50 : AppColors.navIndicator, 
-                  borderRadius: BorderRadius.circular(12)
-                ),
-                child: Icon(
-                  isCheckedIn ? Icons.how_to_reg : Icons.person_outline, 
-                  color: isCheckedIn ? Colors.green : AppColors.primaryTeal
-                ),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: isCheckedIn ? Colors.green.shade50 : AppColors.navIndicator, 
+                      borderRadius: BorderRadius.circular(12)
+                    ),
+                    child: Icon(
+                      isCheckedIn ? Icons.how_to_reg : Icons.person_outline, 
+                      color: isCheckedIn ? Colors.green : AppColors.primaryTeal
+                    ),
+                  ),
+                  const SizedBox(width: 15),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text("$date | $time", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                        const SizedBox(height: 5),
+                        Text(patientName, style: const TextStyle(fontSize: 15, color: Colors.black87)),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 15),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text("$date | $time", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                    const SizedBox(height: 5),
-                    Text(patientName, style: const TextStyle(fontSize: 15, color: Colors.black87)),
-                    
-                    if (isCheckedIn) ...[
-                      const SizedBox(height: 5),
-                      const Text("A páciens megérkezett a váróba!", style: TextStyle(color: Colors.green, fontSize: 12, fontWeight: FontWeight.bold))
-                    ]
-                  ],
+              
+              if (isCheckedIn) ...[
+                const Padding(
+                  padding: EdgeInsets.only(top: 10, bottom: 5),
+                  child: Text("✅ A páciens megérkezett a váróba!", style: TextStyle(color: Colors.green, fontSize: 13, fontWeight: FontWeight.bold)),
                 ),
-              ),
+              ] else ...[
+                 const SizedBox(height: 15),
+              ],
+
+              // The Consultation Button
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () => _showDiagnosisDialog(appId, patientId, patientName, date),
+                  icon: const Icon(Icons.edit_document, size: 18),
+                  label: const Text("Konzultáció Indítása"),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: isCheckedIn ? AppColors.primaryTeal : Colors.grey.shade100,
+                    foregroundColor: isCheckedIn ? Colors.white : AppColors.primaryTeal,
+                    elevation: isCheckedIn ? 2 : 0,
+                  ),
+                ),
+              )
             ],
           ),
         );
@@ -511,4 +534,95 @@ class _ProfileTabState extends State<ProfileTab> {
       );
     }
   }
+
+
+// 4. THE CONSULTATION DIALOG
+  Future<void> _showDiagnosisDialog(String appointmentId, String patientId, String patientName, String date) async {
+    final TextEditingController diagnosisController = TextEditingController();
+    bool isSaving = false;
+
+    await showDialog(
+      context: context,
+      barrierDismissible: false, // Prevents closing by tapping outside
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: Text("Konzultáció: $patientName", style: const TextStyle(color: AppColors.primaryTeal, fontSize: 18)),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text("Kérlek írd be a diagnózist és a javasolt kezelést:"),
+                  const SizedBox(height: 15),
+                  TextField(
+                    controller: diagnosisController,
+                    maxLines: 4,
+                    decoration: InputDecoration(
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                      hintText: "Például: Enyhe vírusos fertőzés, pihenés javasolt...",
+                      filled: true,
+                      fillColor: Colors.grey.shade50,
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isSaving ? null : () => Navigator.pop(context),
+                  child: const Text("Mégse", style: TextStyle(color: Colors.grey)),
+                ),
+                ElevatedButton(
+                  onPressed: isSaving ? null : () async {
+                    if (diagnosisController.text.trim().isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("A diagnózis nem lehet üres!")));
+                      return;
+                    }
+
+                    setDialogState(() => isSaving = true);
+
+                    try {
+                      // 1. Create the permanent Medical Record
+                      await FirebaseFirestore.instance.collection('MedicalRecords').add({
+                        'date': date, // Keeping the original appointment date
+                        'diagnosis': diagnosisController.text.trim(),
+                        'doctor_id': FirebaseAuth.instance.currentUser!.uid,
+                        'doctor_name': userData?['name'],
+                        'patient_id': patientId,
+                        'section': userData?['section'] ?? "Általános",
+                      });
+
+                      // 2. Change the appointment status so it disappears from the active list
+                      await FirebaseFirestore.instance.collection('Appointments').doc(appointmentId).update({
+                        'status': 'befejezett'
+                      });
+
+                      if (!mounted) return;
+                      Navigator.pop(context); // Close the dialog
+                      
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text("Konzultáció sikeresen befejezve és elmentve!")),
+                      );
+                    } catch (e) {
+                      setDialogState(() => isSaving = false);
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Hiba történt: $e")));
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primaryTeal,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: isSaving 
+                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) 
+                    : const Text("Befejezés és Mentés"),
+                ),
+              ],
+            );
+          }
+        );
+      }
+    );
+  }
+
+
 }
