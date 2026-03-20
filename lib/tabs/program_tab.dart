@@ -280,7 +280,7 @@ class _ProgramTabState extends State<ProgramTab> {
             else if (_getDynamicAvailableTimes().isEmpty)
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 20),
-                child: Text("Sajnos ezen a napon nincs több szabad időpont.", style: TextStyle(color: Colors.redAccent)),
+                child: Text("Sajnos ezen a napon nincs több szabad időpont.", style: TextStyle(color: AppColors.errorRed)),
               )
             else
               Wrap(
