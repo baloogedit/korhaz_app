@@ -1,3 +1,7 @@
+import 'package:provider/provider.dart';
+import 'providers/user_provider.dart'; 
+//provider is needed to be first imported to be used in the main.dart file
+
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -19,7 +23,15 @@ void main() async {
   //pause boot for 2 seconds to show the splash screen longer (it din't help)
   //await Future.delayed(const Duration(seconds: 2));
 
-  runApp(const KorhazApp());
+  runApp(
+    // Wrap MyApp in a MultiProvider
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => UserProvider()),
+      ],
+      child: const KorhazApp(),
+    ),
+  );
 }
 
 class KorhazApp extends StatelessWidget {
