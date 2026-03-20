@@ -42,6 +42,10 @@ class _ProgramTabState extends State<ProgramTab> {
 
   // Fetch doctors when a section is selected
   Future<void> _loadDoctors(String sectionName) async {
+
+    // that the user is logged in before trying to access their ID
+    final String currentUserId=FirebaseAuth.instance.currentUser!.uid;
+
     setState(() {
       selectedDoctor = null; // Reset doctor when section changes
       doctors = [];
@@ -54,9 +58,11 @@ class _ProgramTabState extends State<ProgramTab> {
         .get();
 
     setState(() {
-      doctors = snapshot.docs.map((doc) {
-        return {"id": doc.id, "name": doc['name']};
-      }).toList();
+      doctors = snapshot.docs
+          .where((doc) => doc.id != currentUserId) // ensure doctors don't see themselves in the list
+          .map((doc) {
+            return {"id": doc.id, "name": doc['name']};
+          }).toList();
     });
   }
 
