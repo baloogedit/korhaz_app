@@ -16,6 +16,9 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
   
+  //pause boot for 2 seconds to show the splash screen longer (it din't help)
+  //await Future.delayed(const Duration(seconds: 2));
+
   runApp(const KorhazApp());
 }
 
