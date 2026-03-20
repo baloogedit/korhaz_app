@@ -158,41 +158,81 @@ class _ProfileTabState extends State<ProfileTab> {
 
   // 2. PATIENT SPECIFIC VIEW
   Widget _buildPatientView() {
-    final userId = FirebaseAuth.instance.currentUser!.uid;
-
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text("Közeledő programálások", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
         const SizedBox(height: 15),
         
-        // Fetch the active appointment from Firestore
         StreamBuilder<QuerySnapshot>(
+          // 1. Ask Firebase specifically for THIS patient's active appointments
           stream: FirebaseFirestore.instance
               .collection('Appointments')
-              .where('patient_id', isEqualTo: userId)
-              .where('status', isEqualTo: 'aktív')
-              .limit(1)
+              .where(
+                'patient_id',
+                isEqualTo: FirebaseAuth.instance.currentUser!.uid,
+              )
+              .where(
+                'status',
+                whereIn: ['aktív', 'megérkezett'],
+              ) // Only show upcoming/checked-in ones!
               .snapshots(),
           builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) return const CircularProgressIndicator();
-            
-            if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-              return _buildEmptyCard("Nincs közeledő időpontod.");
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(
+                child: CircularProgressIndicator(color: AppColors.primaryTeal),
+              );
             }
 
-            var appt = snapshot.data!.docs.first;
-            return _buildAppointmentCard(
-              appt.id, // Pass the document ID
-              appt['date'], 
-              appt['time'], 
-              appt['doctor'], 
-              appt['section'],
-              appt['status'] // Pass the status
+            if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+              return Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: AppColors.cardWhite,
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                child: const Text(
+                  "Nincs aktív előjegyzésed.",
+                  style: TextStyle(color: AppColors.textGrey),
+                ),
+              );
+            }
+
+            // 2. Sort them by date and time so the closest one is at the top
+            var activeAppointments = snapshot.data!.docs;
+            activeAppointments.sort((a, b) {
+              int dateComp = (a['date'] as String).compareTo(
+                b['date'] as String,
+              );
+              if (dateComp != 0) return dateComp;
+              return (a['time'] as String).compareTo(b['time'] as String);
+            });
+
+            // 3. Build a scrollable list of all their upcoming appointments
+            return ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: activeAppointments.length,
+              itemBuilder: (context, index) {
+                var appt = activeAppointments[index];
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 15),
+                  child: _buildAppointmentCard(
+                    appt.id,
+                    appt['date'],
+                    appt['time'],
+                    appt['doctor'],
+                    appt['section'],
+                    appt['status'],
+                  ),
+                );
+              },
             );
           },
         ),
-        
+
         const SizedBox(height: 20),
         
         // Button to open Medical Records (Past appointments)
@@ -301,7 +341,7 @@ class _ProfileTabState extends State<ProfileTab> {
           decoration: BoxDecoration(
             color: AppColors.cardWhite,
             borderRadius: BorderRadius.circular(15),
-            border: isCheckedIn ? Border.all(color: Colors.green, width: 2) : Border.all(color: Colors.grey.shade200),
+            border: isCheckedIn ? Border.all(color: AppColors.successGreen, width: 2) : Border.all(color: Colors.grey.shade200),
             boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10)],
           ),
           child: Column(
@@ -312,12 +352,12 @@ class _ProfileTabState extends State<ProfileTab> {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: isCheckedIn ? Colors.green.shade50 : AppColors.navIndicator, 
+                      color: isCheckedIn ? AppColors.successLight : AppColors.navIndicator, 
                       borderRadius: BorderRadius.circular(12)
                     ),
                     child: Icon(
                       isCheckedIn ? Icons.how_to_reg : Icons.person_outline, 
-                      color: isCheckedIn ? Colors.green : AppColors.primaryTeal
+                      color: isCheckedIn ? AppColors.successGreen : AppColors.primaryTeal
                     ),
                   ),
                   const SizedBox(width: 15),
@@ -337,7 +377,7 @@ class _ProfileTabState extends State<ProfileTab> {
               if (isCheckedIn) ...[
                 const Padding(
                   padding: EdgeInsets.only(top: 10, bottom: 5),
-                  child: Text("✅ A páciens megérkezett a váróba!", style: TextStyle(color: Colors.green, fontSize: 13, fontWeight: FontWeight.bold)),
+                  child: Text("✅ A páciens megérkezett a váróba!", style: TextStyle(color: AppColors.successGreen, fontSize: 13, fontWeight: FontWeight.bold)),
                 ),
               ] else ...[
                  const SizedBox(height: 15),
@@ -408,7 +448,7 @@ class _ProfileTabState extends State<ProfileTab> {
               icon: Icon(isCheckedIn ? Icons.check_circle : Icons.location_on),
               label: Text(isCheckedIn ? "Sikeresen bejelentkezve!" : "Megérkeztem (Check-in)"),
               style: ElevatedButton.styleFrom(
-                backgroundColor: isCheckedIn ? Colors.green : AppColors.primaryTeal,
+                backgroundColor: isCheckedIn ? AppColors.successGreen : AppColors.primaryTeal,
                 foregroundColor: Colors.white,
               ),
             ),
