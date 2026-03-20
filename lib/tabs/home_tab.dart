@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../providers/user_provider.dart';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '/constants/colors.dart';
 
@@ -15,7 +18,17 @@ class _HomeTabState extends State<HomeTab> {
   String doctorNames = "Betöltés...";
 
   @override
+  void initState() { //usage of provider
+    super.initState();
+    // Fetch user data when the tab loads
+    // false: required when call provider inside initState
+    Provider.of<UserProvider>(context, listen: false).fetchUserData();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final userProvider = context.watch<UserProvider>();
+
     return Scaffold(
       backgroundColor: AppColors.bgTeal,
       body: SingleChildScrollView(
@@ -36,15 +49,18 @@ class _HomeTabState extends State<HomeTab> {
                   bottomRight: Radius.circular(30),
                 ),
               ),
-              child: const Column(
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+                children:[
                   Text(
-                    "Üdvözlünk!",
-                    style: TextStyle(color: AppColors.textWhiteFaded, fontSize: 16),
+                    // Ha az adat betöltött, kiírjuk a nevét, ha még nem, csak annyit: "Üdvözlünk!"
+                    userProvider.userData != null 
+                        ? "Üdvözlünk, ${userProvider.userData!['name']}!" 
+                        : "Üdvözlünk!",
+                    style: const TextStyle(color: AppColors.textWhiteFaded, fontSize: 16),
                   ),
-                  SizedBox(height: 5),
-                  Text(
+                  const SizedBox(height: 5),
+                  const Text(
                     "KorhazApp Központ", // Your Hospital Name
                     style: TextStyle(
                         color: AppColors.textWhite,
