@@ -113,35 +113,30 @@ class _ProgramTabState extends State<ProgramTab> {
     bool isToday = isSameDay(_selectedDay, DateTime.now());
     int currentMinutes = DateTime.now().hour * 60 + DateTime.now().minute;
 
-    // Loop through the day in 10-minute jumps
+   // A dinamikus 10 perces ugrások generálása és az ütközésvizsgálat
     for (int i = startMinutes; i <= endMinutes - 30; i += 10) {
-      // Bonus: If it's today, don't show times that have already passed!
-      if (isToday && i <= currentMinutes) continue;
-
+      if (isToday && i <= currentMinutes) continue; // Napi múltbeli időpontok szűrése
       int candidateStart = i;
-      int candidateEnd = i + 30; // Every appointment takes 30 minutes
+      int candidateEnd = i + 30; // Minden vizsgálat 30 perces blokkot igényel
       bool isOverlapping = false;
-
-      // Check this candidate time against EVERY booked appointment
-      for (String booked in bookedTimes) {
+      
+      for (String booked in bookedTimes) {// Ütközésvizsgálat a már lefoglalt időpontokkal (Collision Detection)
         int bookedStart = _timeToMinutes(booked);
         int bookedEnd = bookedStart + 30;
-
-        // The formula to detect if two time periods overlap:
+        // A matematikai formula az időbeli átfedések (overlap) detektálására:
         if (candidateStart < bookedEnd && candidateEnd > bookedStart) {
           isOverlapping = true;
-          break; // Stop checking, this slot is dead!
+          break; // Találat esetén megszakítjuk a keresést, az időablak nem foglalható
         }
       }
-
-      // If it didn't overlap with anything, format it and add it to the list!
-      if (!isOverlapping) {
+      if (!isOverlapping) { // Ha nincs ütközés, az időpont bekerül a kiválasztható listába
         int h = i ~/ 60;
         int m = i % 60;
         String timeStr = '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}';
         times.add(timeStr);
       }
     }
+    
     return times;
   }
 
