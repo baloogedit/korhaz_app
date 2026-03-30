@@ -522,7 +522,9 @@ class _ProfileTabState extends State<ProfileTab> {
     // TODO: change wifi name in server (index.js) to match testing environment (ln. 24)
     // IMPORTANT: If testing on an Android Emulator, use "10.0.2.2" instead of "localhost"
     // If testing on a real phone via USB, use your computer's local IP (e.g., 192.168.1.X)
-    final String serverUrl = "http://10.0.2.2:3000/api/checkin";
+    print("Phone sees WiFi as: '$wifiName'"); 
+
+    final String serverUrl = "http://192.168.0.158:3000/api/checkin";
 
     try {
       final response = await http.post(
