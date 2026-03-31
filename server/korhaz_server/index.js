@@ -17,34 +17,28 @@ app.use(express.json());
 // 2. The Check-in API Endpoint
 app.post('/api/checkin', async (req, res) => {
   const { appointmentId, date, time, wifiName, doctorName } = req.body;
+  console.log("SERVER RECEIVED:", req.body); // This is what you saw in your screenshot
 
   try {
-    // --- SERVER RULE 1: Check WiFi ---
-    // TODO: change the wifi name
-    const requiredWifi = "AndroidWifi"; // Change this to your home wifi for testing!
-    if (wifiName !== requiredWifi) {
+    const requiredWifi = "TP-Link_404F"; // otthoni Wi-Fi hálózat neve teszteléshez
+    // SZERVER SZABÁLY 1: WiFi hálózat ellenőrzése
+    if (wifiName !== requiredWifi && wifiName !== "AndroidWifi" && wifiName !== "<unknown ssid>") {
       return res.status(400).json({ 
         success: false, 
-        message: `Nem a kórház WiFi hálózatán vagy! (Jelenlegi: ${wifiName})` 
+        message: `Nem a kórház WiFi hálózatán vagy! (Jelenlegi: ${wifiName})` // kiírja, ha helytelen a Wi-Fi hálózat
       });
     }
-
-    // --- SERVER RULE 2: Check Time ---
-    // Create a date object from the appointment time string
-    const apptTime = new Date(`${date}T${time}:00`);
-    const now = new Date();
-    
-    // Calculate difference in minutes
-    const diffMinutes = (now - apptTime) / (1000 * 60);
-
+    // SZERVER SZABÁLY 2: Időkorlát ellenőrzése (5 perccel a bejelentkezés előtt vagy után)
+    const apptTime = new Date(`${date}T${time}:00`); // Átalakítjuk a dátumot és időt egy JavaScript Date objektummá
+    const now = new Date();      
+    const diffMinutes = (now - apptTime) / (1000 * 60);// Kiszámoljuk a különbséget percben
     if (diffMinutes < -5 || diffMinutes > 5) {
       return res.status(400).json({ 
         success: false, 
         message: "Csak az időpontod előtt/után 5 perccel jelentkezhetsz be!" 
       });
     }
-
-    // --- SERVER RULE 3: Update Database ---
+    // SZERVER SZABÁLY 3: Időpont státuszának frissítése "megérkezett"-re az adatbázisban
     await db.collection('Appointments').doc(appointmentId).update({
       status: 'megérkezett'
     });
@@ -68,6 +62,6 @@ app.post('/api/checkin', async (req, res) => {
 
 // Start the server
 const PORT = 3000;
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`🏥 Korhaz Server is running on http://localhost:${PORT}`);
 });
